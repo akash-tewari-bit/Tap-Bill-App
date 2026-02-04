@@ -78,15 +78,33 @@ export default function Orders() {
           </TouchableOpacity>
         </View>
 
-        {showStartPicker && (
+        {showStartPicker && Platform.OS === 'ios' && (
+          <View style={styles.iosPickerContainer}>
+            <View style={styles.iosPickerHeader}>
+              <TouchableOpacity onPress={() => setShowStartPicker(false)}>
+                <Text style={styles.iosPickerDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={startDate}
+              mode="date"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setStartDate(selectedDate);
+                }
+              }}
+            />
+          </View>
+        )}
+
+        {showStartPicker && Platform.OS === 'android' && (
           <DateTimePicker
             value={startDate}
             mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            display="default"
             onChange={(event, selectedDate) => {
-              if (Platform.OS === 'android') {
-                setShowStartPicker(false);
-              }
+              setShowStartPicker(false);
               if (selectedDate) {
                 setStartDate(selectedDate);
               }
@@ -94,15 +112,33 @@ export default function Orders() {
           />
         )}
 
-        {showEndPicker && (
+        {showEndPicker && Platform.OS === 'ios' && (
+          <View style={styles.iosPickerContainer}>
+            <View style={styles.iosPickerHeader}>
+              <TouchableOpacity onPress={() => setShowEndPicker(false)}>
+                <Text style={styles.iosPickerDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={endDate}
+              mode="date"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setEndDate(selectedDate);
+                }
+              }}
+            />
+          </View>
+        )}
+
+        {showEndPicker && Platform.OS === 'android' && (
           <DateTimePicker
             value={endDate}
             mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            display="default"
             onChange={(event, selectedDate) => {
-              if (Platform.OS === 'android') {
-                setShowEndPicker(false);
-              }
+              setShowEndPicker(false);
               if (selectedDate) {
                 setEndDate(selectedDate);
               }
