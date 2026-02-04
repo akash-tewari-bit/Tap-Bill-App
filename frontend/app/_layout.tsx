@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Redirect } from 'expo-router';
 import { initializeSampleData } from '../services/storage';
 
 export default function RootLayout() {
@@ -18,6 +19,7 @@ export default function RootLayout() {
           title: 'Create Order',
           presentation: 'card'
         }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
       </Stack>
     </SafeAreaProvider>
   );
