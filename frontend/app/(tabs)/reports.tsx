@@ -284,13 +284,13 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     marginHorizontal: 12,
   },
-  iosPickerContainer: {
+  pickerContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginTop: 12,
     overflow: 'hidden',
   },
-  iosPickerHeader: {
+  pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     padding: 12,
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E5EA',
     backgroundColor: '#F8F8F8',
   },
-  iosPickerDone: {
+  pickerDone: {
     fontSize: 16,
     fontWeight: '600',
     color: '#007AFF',
