@@ -118,11 +118,11 @@ export default function Reports() {
           </TouchableOpacity>
         </View>
 
-        {showStartPicker && Platform.OS === 'ios' && (
-          <View style={styles.iosPickerContainer}>
-            <View style={styles.iosPickerHeader}>
+        {showStartPicker && (
+          <View style={styles.pickerContainer}>
+            <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={() => setShowStartPicker(false)}>
-                <Text style={styles.iosPickerDone}>Done</Text>
+                <Text style={styles.pickerDone}>Done</Text>
               </TouchableOpacity>
             </View>
             <DateTimePicker
@@ -138,25 +138,11 @@ export default function Reports() {
           </View>
         )}
 
-        {showStartPicker && Platform.OS === 'android' && (
-          <DateTimePicker
-            value={startDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowStartPicker(false);
-              if (selectedDate) {
-                setStartDate(selectedDate);
-              }
-            }}
-          />
-        )}
-
-        {showEndPicker && Platform.OS === 'ios' && (
-          <View style={styles.iosPickerContainer}>
-            <View style={styles.iosPickerHeader}>
+        {showEndPicker && (
+          <View style={styles.pickerContainer}>
+            <View style={styles.pickerHeader}>
               <TouchableOpacity onPress={() => setShowEndPicker(false)}>
-                <Text style={styles.iosPickerDone}>Done</Text>
+                <Text style={styles.pickerDone}>Done</Text>
               </TouchableOpacity>
             </View>
             <DateTimePicker
@@ -170,20 +156,6 @@ export default function Reports() {
               }}
             />
           </View>
-        )}
-
-        {showEndPicker && Platform.OS === 'android' && (
-          <DateTimePicker
-            value={endDate}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowEndPicker(false);
-              if (selectedDate) {
-                setEndDate(selectedDate);
-              }
-            }}
-          />
         )}
 
         <TouchableOpacity style={styles.exportButton} onPress={exportToCSV}>
