@@ -84,8 +84,12 @@ export default function Orders() {
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(event, selectedDate) => {
-              setShowStartPicker(Platform.OS === 'ios');
-              if (selectedDate) setStartDate(selectedDate);
+              if (Platform.OS === 'android') {
+                setShowStartPicker(false);
+              }
+              if (selectedDate) {
+                setStartDate(selectedDate);
+              }
             }}
           />
         )}
@@ -96,8 +100,12 @@ export default function Orders() {
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(event, selectedDate) => {
-              setShowEndPicker(Platform.OS === 'ios');
-              if (selectedDate) setEndDate(selectedDate);
+              if (Platform.OS === 'android') {
+                setShowEndPicker(false);
+              }
+              if (selectedDate) {
+                setEndDate(selectedDate);
+              }
             }}
           />
         )}
