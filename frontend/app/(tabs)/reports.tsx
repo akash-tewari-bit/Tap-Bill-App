@@ -312,6 +312,25 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     marginHorizontal: 12,
   },
+  iosPickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  iosPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+    backgroundColor: '#F8F8F8',
+  },
+  iosPickerDone: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
   exportButton: {
     flexDirection: 'row',
     alignItems: 'center',
