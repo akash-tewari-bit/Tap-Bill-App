@@ -31,9 +31,16 @@ dist/
 dist
 
 # Environment files (comprehensive coverage)
+*.env
+*.env.*
 
 *token.json*
 *credentials.json*
+
+# Firebase credentials
+*firebase-admin*.json
+firebase-admin.json
+backend/firebase-admin.json
 
 # Logs and debug files
 npm-debug.log*
@@ -77,23 +84,4 @@ agenthub/agents/youtube/db
 .cache/
 
 # Mobile development
-android-sdk/ -e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
+android-sdk/
