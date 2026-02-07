@@ -123,7 +123,7 @@ export default function LoginScreen() {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Ionicons name=\"restaurant\" size={64} color=\"#007AFF\" />
+          <Ionicons name="restaurant" size={64} color="#007AFF" />
           <Text style={styles.title}>Food Cart Manager</Text>
           <Text style={styles.subtitle}>Login with your mobile number</Text>
         </View>
