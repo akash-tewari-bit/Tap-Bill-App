@@ -136,8 +136,8 @@ export default function LoginScreen() {
               </View>
               <TextInput
                 style={styles.phoneInput}
-                placeholder=\"Mobile Number\"
-                keyboardType=\"phone-pad\"
+                placeholder="Mobile Number"
+                keyboardType="phone-pad"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 maxLength={10}
