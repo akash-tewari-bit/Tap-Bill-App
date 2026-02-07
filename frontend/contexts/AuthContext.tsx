@@ -2,6 +2,11 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { AppState } from 'react-native';
+import axios from 'axios';
+import { router } from 'expo-router';
+
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 interface User {
   phoneNumber: string;
@@ -17,6 +22,7 @@ interface AuthContextType {
   login: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
+  checkUserStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +31,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Check user status with backend
+  const checkUserStatus = async () => {
+    try {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) return;
+
+      const idToken = await firebaseUser.getIdToken();
+      const response = await axios.post(
+        `${BACKEND_URL}/api/auth/verify-token`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        const updatedUser = response.data.user;
+        
+        // Check if user is still active (skip for super admins)
+        if (!updatedUser.isActive && !updatedUser.isSuperAdmin) {
+          // User has been deactivated - force logout
+          await logout();
+          alert('Your account has been deactivated by an administrator.');
+          return;
+        }
+
+        // Update user data
+        await AsyncStorage.setItem('@user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setIsAuthenticated(true);
+      }
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        // User is deactivated
+        await logout();
+        alert('Your account has been deactivated.');
+      }
+      console.error('Error checking user status:', error);
+    }
+  };
 
   useEffect(() => {
     // Listen to Firebase auth state changes
@@ -37,6 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const parsedUser = JSON.parse(userData);
             setUser(parsedUser);
             setIsAuthenticated(true);
+            
+            // Check status immediately
+            await checkUserStatus();
           }
         } catch (error) {
           console.error('Error loading user data:', error);
@@ -51,6 +103,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, []);
+
+  // Check user status when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && isAuthenticated) {
+        checkUserStatus();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isAuthenticated]);
+
+  // Periodic status check every 2 minutes while app is active
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      checkUserStatus();
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   const login = async (userData: User) => {
     try {
@@ -69,6 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.removeItem('@user');
       setUser(null);
       setIsAuthenticated(false);
+      router.replace('/login');
     } catch (error) {
       console.error('Error logging out:', error);
       throw error;
@@ -81,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateUser, checkUserStatus }}>
       {children}
     </AuthContext.Provider>
   );
