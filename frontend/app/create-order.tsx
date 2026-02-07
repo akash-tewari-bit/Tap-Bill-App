@@ -141,39 +141,6 @@ export default function CreateOrder() {
     }
   };
 
-  const preparePrintData = async (order: Order) => {
-    // Prepare bill data for Bluetooth printing
-    const billData = {
-      businessName: settings?.businessName || 'My Food Cart',
-      businessLogo: settings?.businessLogo || '',
-      address: settings?.address || '',
-      phone: settings?.phone || '',
-      orderId: order.id,
-      customerName: order.customerName,
-      customerPhone: order.customerPhone,
-      tableToken: order.tableToken,
-      items: order.items.map(item => ({
-        name: item.menuItem.name,
-        quantity: item.quantity,
-        price: item.menuItem.price,
-        total: item.quantity * item.menuItem.price,
-      })),
-      totalAmount: order.totalAmount,
-      paymentMode: order.paymentMode,
-      timestamp: order.timestamp,
-    };
-
-    // Note: Actual Bluetooth printing would be implemented here
-    // using react-native-bluetooth-escpos-printer
-    console.log('Bill data prepared for printing:', billData);
-    
-    // For now, we're just logging the data
-    // In a real implementation, you would:
-    // 1. Connect to Bluetooth printer
-    // 2. Format the bill using ESC/POS commands
-    // 3. Send to printer
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
