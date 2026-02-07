@@ -16,7 +16,6 @@ import { auth } from '../config/firebase';
 import { 
   PhoneAuthProvider, 
   signInWithCredential,
-  RecaptchaVerifier 
 } from 'firebase/auth';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import axios from 'axios';
@@ -115,11 +114,13 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={auth.app.options}
-        attemptInvisibleVerification={true}
-      />
+      {Platform.OS !== 'web' && (
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={auth.app.options}
+          attemptInvisibleVerification={true}
+        />
+      )}
 
       <View style={styles.content}>
         <View style={styles.header}>
