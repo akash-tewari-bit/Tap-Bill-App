@@ -56,7 +56,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!updatedUser.isActive && !updatedUser.isSuperAdmin) {
           // User has been deactivated - force logout
           await logout();
-          alert('Your account has been deactivated by an administrator.');
+          Alert.alert(
+            'Account Deactivated',
+            'Your account has been deactivated. Please contact support for assistance.',
+            [{ text: 'OK' }]
+          );
           return;
         }
 
@@ -66,12 +70,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(true);
       }
     } catch (error: any) {
+      console.error('Status check error:', error);
+      
       if (error.response?.status === 403) {
         // User is deactivated
         await logout();
-        alert('Your account has been deactivated.');
+        Alert.alert(
+          'Account Deactivated',
+          'Your account has been deactivated. Please contact support.',
+          [{ text: 'OK' }]
+        );
       }
-      console.error('Error checking user status:', error);
+      // Silently log other errors without showing to user
     }
   };
 
