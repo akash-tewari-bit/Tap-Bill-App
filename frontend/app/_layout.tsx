@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, Slot } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Redirect } from 'expo-router';
+import { AuthProvider } from '../contexts/AuthContext';
 import { initializeSampleData } from '../services/storage';
 
 export default function RootLayout() {
@@ -12,15 +12,19 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="create-order" options={{ 
-          headerShown: true,
-          title: 'Create Order',
-          presentation: 'card'
-        }} />
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-      </Stack>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="create-order" options={{ 
+            headerShown: true,
+            title: 'Create Order',
+            presentation: 'card'
+          }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+        </Stack>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
+
