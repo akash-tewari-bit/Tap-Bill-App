@@ -1,11 +1,9 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   
   return (
@@ -64,18 +62,16 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Conditionally render Users tab for super admins only */}
-      {user?.isSuperAdmin && (
-        <Tabs.Screen
-          name="users"
-          options={{
-            title: 'Users',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="people" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: 'Users',
+          href: user?.isSuperAdmin ? undefined : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="settings"
         options={{
