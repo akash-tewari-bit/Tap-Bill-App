@@ -151,10 +151,10 @@ export default function LoginScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color=\"#FFFFFF\" />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Ionicons name=\"send\" size={20} color=\"#FFFFFF\" />
+                  <Ionicons name="send" size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>Send OTP</Text>
                 </>
               )}
@@ -168,8 +168,8 @@ export default function LoginScreen() {
 
             <TextInput
               style={styles.codeInput}
-              placeholder=\"Enter 6-digit OTP\"
-              keyboardType=\"number-pad\"
+              placeholder="Enter 6-digit OTP"
+              keyboardType="number-pad"
               value={verificationCode}
               onChangeText={setVerificationCode}
               maxLength={6}
@@ -183,10 +183,10 @@ export default function LoginScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color=\"#FFFFFF\" />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Ionicons name=\"checkmark-circle\" size={20} color=\"#FFFFFF\" />
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>Verify OTP</Text>
                 </>
               )}
