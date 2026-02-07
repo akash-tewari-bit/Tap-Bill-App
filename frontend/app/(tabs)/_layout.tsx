@@ -64,6 +64,18 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Conditionally render Users tab for super admins only */}
+      {user?.isSuperAdmin && (
+        <Tabs.Screen
+          name="users"
+          options={{
+            title: 'Users',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
       <Tabs.Screen
         name="settings"
         options={{
