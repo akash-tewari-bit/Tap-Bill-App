@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { AppState } from 'react-native';
+import { AppState, Alert } from 'react-native';
 import axios from 'axios';
 import { router } from 'expo-router';
 
