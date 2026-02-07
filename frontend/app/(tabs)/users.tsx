@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { auth } from '../../config/firebase';
 import axios from 'axios';
+import { router } from 'expo-router';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
@@ -26,6 +27,26 @@ interface User {
 
 export default function UsersScreen() {
   const { user: currentUser } = useAuth();
+  
+  // Redirect if not super admin
+  useEffect(() => {
+    if (!currentUser?.isSuperAdmin) {
+      Alert.alert('Access Denied', 'You do not have permission to access this screen.');
+      router.replace('/(tabs)');
+    }
+  }, [currentUser]);
+
+  // If not super admin, show nothing
+  if (!currentUser?.isSuperAdmin) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Access Denied</Text>
+        </View>
+      </View>
+    );
+  }
+
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
