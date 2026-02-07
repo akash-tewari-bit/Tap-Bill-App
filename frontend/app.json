@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Food Cart Manager",
-    "slug": "food-cart-manager",
+    "name": "Tap-Bill",
+    "slug": "tap-bill",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "foodcart",
+    "scheme": "tapbill",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
