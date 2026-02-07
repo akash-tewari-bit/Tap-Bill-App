@@ -124,8 +124,12 @@ export default function LoginScreen() {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Ionicons name="restaurant" size={64} color="#007AFF" />
-          <Text style={styles.title}>Food Cart Manager</Text>
+          <Image
+            source={require('../assets/images/tap-bill-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Tap-Bill</Text>
           <Text style={styles.subtitle}>Login with your mobile number</Text>
         </View>
 
