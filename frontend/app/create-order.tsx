@@ -107,15 +107,30 @@ export default function CreateOrder() {
     try {
       await saveOrder(order);
       
-      // Prepare for Bluetooth printing
-      await preparePrintData(order);
-      
+      // Ask if user wants to print
       Alert.alert(
-        'Success',
-        'Order created successfully!',
+        'Order Created',
+        'Order created successfully! Would you like to print the receipt?',
         [
           {
-            text: 'OK',
+            text: 'Print Receipt',
+            onPress: async () => {
+              // Import print service dynamically
+              try {
+                const { printReceipt } = await import('../services/printService');
+                if (settings) {
+                  await printReceipt({ order, settings });
+                }
+              } catch (error) {
+                console.error('Print error:', error);
+                Alert.alert('Print Error', 'Printing is only available on mobile devices.');
+              }
+              router.back();
+            },
+          },
+          {
+            text: 'Skip',
+            style: 'cancel',
             onPress: () => router.back(),
           },
         ]
