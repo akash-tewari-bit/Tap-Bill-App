@@ -11,12 +11,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { router } from 'expo-router';
 import { getSettings, saveSettings, getMenuItems, saveMenuItem, deleteMenuItem } from '../../services/storage';
 import type { Settings, MenuItem } from '../../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function SettingsScreen() {
+  const { user, logout } = useAuth();
   const [settings, setSettings] = useState<Settings>({
     businessName: '',
     businessLogo: '',
