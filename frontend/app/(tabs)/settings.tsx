@@ -343,6 +343,57 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          
+          <View style={styles.accountCard}>
+            <View style={styles.accountInfo}>
+              <Ionicons name="person-circle" size={48} color="#007AFF" />
+              <View style={styles.accountDetails}>
+                <Text style={styles.accountName}>{user?.name || 'User'}</Text>
+                <Text style={styles.accountPhone}>{user?.phoneNumber}</Text>
+                {user?.isSuperAdmin && (
+                  <View style={styles.adminBadge}>
+                    <Text style={styles.adminBadgeText}>Super Admin</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={async () => {
+              Alert.alert(
+                'Logout',
+                'Are you sure you want to logout?',
+                [
+                  {
+                    text: 'Cancel',
+                    style: 'cancel',
+                  },
+                  {
+                    text: 'Logout',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await logout();
+                        router.replace('/login');
+                      } catch (error) {
+                        Alert.alert('Error', 'Failed to logout');
+                      }
+                    },
+                  },
+                ],
+              );
+            }}
+          >
+            <Ionicons name="log-out" size={20} color="#FF3B30" />
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
