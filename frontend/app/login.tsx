@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,17 +24,33 @@ import { Ionicons } from '@expo/vector-icons';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
-// Development mode flag - set to true for local development
-const DEV_MODE = __DEV__ && BACKEND_URL.includes('localhost');
-const DEV_OTP = '666666';
-
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [devMode, setDevMode] = useState(false);
+  const [devOtp, setDevOtp] = useState('');
   const { login } = useAuth();
   const recaptchaVerifier = useRef<any>(null);
+
+  // Check if backend is in dev mode on mount
+  useEffect(() => {
+    checkDevMode();
+  }, []);
+
+  const checkDevMode = async () => {
+    try {
+      const response = await axios.get(`${BACKEND_URL}/api/health`);
+      if (response.data.devMode) {
+        setDevMode(true);
+        setDevOtp(response.data.devOtp || '666666');
+        console.log('🔧 Backend is in DEV MODE');
+      }
+    } catch (error) {
+      console.log('Could not check dev mode, assuming production');
+    }
+  };
 
   const sendVerification = async () => {
     if (!phoneNumber || phoneNumber.length !== 10) {
@@ -47,10 +63,10 @@ export default function LoginScreen() {
 
     try {
       // Development mode - skip Firebase OTP
-      if (DEV_MODE) {
-        console.log('🔧 DEV MODE: Using static OTP 666666');
+      if (devMode) {
+        console.log('🔧 DEV MODE: Using static OTP', devOtp);
         setVerificationId('dev-mode-verification-id');
-        Alert.alert('Development Mode', `Static OTP: ${DEV_OTP}\n\nNo SMS will be sent in local development.`);
+        Alert.alert('Development Mode', `Static OTP: ${devOtp}\n\nNo SMS will be sent.`);
         setLoading(false);
         return;
       }
@@ -81,26 +97,25 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Development mode - skip Firebase verification
-      if (DEV_MODE && verificationId === 'dev-mode-verification-id') {
-        if (verificationCode !== DEV_OTP) {
-          Alert.alert('Error', `Invalid OTP. Use ${DEV_OTP} for local development.`);
-          setLoading(false);
-          return;
-        }
-
-        console.log('🔧 DEV MODE: Bypassing Firebase, logging in directly');
+      // Development mode - use backend dev login
+      if (devMode && verificationId === 'dev-mode-verification-id') {
+        console.log('🔧 DEV MODE: Using backend dev login');
         
-        // Create mock user for development
-        const mockUser = {
-          phoneNumber: `+91${phoneNumber}`,
-          name: phoneNumber === '9899273448' ? 'Super Admin' : 'Dev User',
-          isActive: true,
-          isSuperAdmin: phoneNumber === '9899273448',
-        };
+        const response = await axios.post(
+          `${BACKEND_URL}/api/auth/dev-login`,
+          {
+            phoneNumber: phoneNumber,
+            otp: verificationCode
+          }
+        );
 
-        await login(mockUser);
-        router.replace('/(tabs)');
+        if (response.data.success) {
+          // Store dev token for authenticated requests
+          await login(response.data.user, response.data.devToken);
+          router.replace('/(tabs)');
+        } else {
+          Alert.alert('Error', response.data.message || 'Authentication failed');
+        }
         setLoading(false);
         return;
       }
@@ -127,7 +142,7 @@ export default function LoginScreen() {
       );
 
       if (response.data.success) {
-        await login(response.data.user);
+        await login(response.data.user, idToken);
         router.replace('/(tabs)');
       } else {
         Alert.alert('Error', response.data.message || 'Authentication failed');
@@ -137,10 +152,15 @@ export default function LoginScreen() {
       if (error.response?.status === 403) {
         Alert.alert(
           'Account Deactivated',
-          'Your account has been deactivated. Please contact support.'
+          error.response?.data?.detail || 'Your account has been deactivated. Please contact support.'
+        );
+      } else if (error.response?.status === 401) {
+        Alert.alert(
+          'Invalid OTP',
+          error.response?.data?.detail || 'Invalid verification code. Please try again.'
         );
       } else {
-        Alert.alert('Error', error.message || 'Invalid verification code');
+        Alert.alert('Error', error.response?.data?.detail || error.message || 'Invalid verification code');
       }
     } finally {
       setLoading(false);
