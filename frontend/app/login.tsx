@@ -24,6 +24,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
+// Development mode flag - set to true for local development
+const DEV_MODE = __DEV__ && BACKEND_URL.includes('localhost');
+const DEV_OTP = '666666';
+
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
@@ -42,6 +46,16 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
+      // Development mode - skip Firebase OTP
+      if (DEV_MODE) {
+        console.log('🔧 DEV MODE: Using static OTP 666666');
+        setVerificationId('dev-mode-verification-id');
+        Alert.alert('Development Mode', `Static OTP: ${DEV_OTP}\n\nNo SMS will be sent in local development.`);
+        setLoading(false);
+        return;
+      }
+
+      // Production mode - use Firebase OTP
       const phoneProvider = new PhoneAuthProvider(auth);
       const verificationId = await phoneProvider.verifyPhoneNumber(
         fullPhoneNumber,
@@ -67,7 +81,31 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Create credential and sign in
+      // Development mode - skip Firebase verification
+      if (DEV_MODE && verificationId === 'dev-mode-verification-id') {
+        if (verificationCode !== DEV_OTP) {
+          Alert.alert('Error', `Invalid OTP. Use ${DEV_OTP} for local development.`);
+          setLoading(false);
+          return;
+        }
+
+        console.log('🔧 DEV MODE: Bypassing Firebase, logging in directly');
+        
+        // Create mock user for development
+        const mockUser = {
+          phoneNumber: `+91${phoneNumber}`,
+          name: phoneNumber === '9899273448' ? 'Super Admin' : 'Dev User',
+          isActive: true,
+          isSuperAdmin: phoneNumber === '9899273448',
+        };
+
+        await login(mockUser);
+        router.replace('/(tabs)');
+        setLoading(false);
+        return;
+      }
+
+      // Production mode - verify with Firebase
       const credential = PhoneAuthProvider.credential(
         verificationId,
         verificationCode
@@ -89,7 +127,6 @@ export default function LoginScreen() {
       );
 
       if (response.data.success) {
-        // Save user data and navigate
         await login(response.data.user);
         router.replace('/(tabs)');
       } else {
