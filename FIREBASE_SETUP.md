@@ -1,8 +1,24 @@
 # Firebase Setup Instructions
 
-## Required Firebase Credentials
+## Quick Start - Development Mode
 
-This application requires Firebase credentials for authentication. Follow these steps to set up:
+For **local development** without Firebase setup, you can use **Dev Mode**:
+
+1. Set in `backend/.env`:
+   ```
+   DEV_MODE=true
+   ```
+
+2. Use OTP `666666` for any phone number
+3. No Firebase credentials required!
+
+This is perfect for testing the app locally without setting up Firebase billing.
+
+---
+
+## Production Setup (Firebase)
+
+For production deployment, you'll need to set up Firebase:
 
 ### 1. Firebase Service Account (Backend)
 
@@ -40,7 +56,14 @@ Firebase Phone Authentication requires the Blaze (Pay-as-you-go) plan:
 
 **Cost:** First 10,000 verifications/month are FREE
 
-### 5. Super Admin Configuration
+### 5. Disable Dev Mode for Production
+
+In `backend/.env`, set:
+```
+DEV_MODE=false
+```
+
+## Super Admin Configuration
 
 Edit `backend/auth_service.py` to add super admin phone numbers:
 
@@ -53,17 +76,20 @@ SUPER_ADMINS = [
 
 ## Environment Variables
 
-Make sure these environment variables are set in `backend/.env`:
+### Backend (`backend/.env`)
 
 ```
 MONGO_URL=mongodb://localhost:27017
+DEV_MODE=true   # Set to 'false' for production
 ```
 
-Frontend environment variables are in `frontend/.env`:
+### Frontend (`frontend/.env`)
 
 ```
-EXPO_PUBLIC_BACKEND_URL=http://localhost:8001
+EXPO_PUBLIC_BACKEND_URL=http://<YOUR_IP>:8001
 ```
+
+Replace `<YOUR_IP>` with your computer's local IP address (not `localhost`) for mobile testing.
 
 ## Running the Application
 
@@ -86,4 +112,5 @@ yarn start
 - **Never commit** `firebase-admin.json` to git
 - **Never commit** `.env` files with sensitive data
 - Keep your Firebase API keys secure
+- **Disable DEV_MODE** before deploying to production
 - Set up Firebase security rules appropriately
