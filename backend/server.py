@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from datetime import datetime
 from bson import ObjectId
-from auth_service import verify_firebase_token, is_super_admin, SUPER_ADMINS
+from auth_service import verify_firebase_token, is_super_admin, SUPER_ADMINS, DEV_MODE, DEV_OTP
 
 load_dotenv()
 
@@ -34,6 +34,10 @@ class UserProfile(BaseModel):
 class UserUpdate(BaseModel):
     name: str
     isActive: bool
+
+class DevLoginRequest(BaseModel):
+    phoneNumber: str
+    otp: str
 
 # Helper function to verify token
 async def get_current_user(authorization: Optional[str] = Header(None)):
