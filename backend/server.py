@@ -56,7 +56,87 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy", "message": "Backend is running"}
+    return {
+        "status": "healthy",
+        "message": "Backend is running",
+        "devMode": DEV_MODE,
+        "devOtp": DEV_OTP if DEV_MODE else None
+    }
+
+# Development mode endpoints
+@app.post("/api/auth/dev-login")
+async def dev_login(request: DevLoginRequest):
+    """Login with static OTP in development mode"""
+    if not DEV_MODE:
+        raise HTTPException(
+            status_code=403,
+            detail="Dev mode is not enabled. Set DEV_MODE=true in .env"
+        )
+    
+    if request.otp != DEV_OTP:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid OTP. Use {DEV_OTP} for development mode."
+        )
+    
+    # Format phone number
+    phone_number = request.phoneNumber
+    if not phone_number.startswith("+"):
+        phone_number = f"+91{phone_number}"
+    
+    # Check if user exists in MongoDB
+    user = db.users.find_one({"phoneNumber": phone_number})
+    
+    # Check if super admin
+    is_admin = is_super_admin(phone_number)
+    
+    if not user:
+        # Create new user
+        new_user = {
+            "phoneNumber": phone_number,
+            "firebaseUid": f"dev-uid-{phone_number}",
+            "name": "",
+            "isActive": True,
+            "isSuperAdmin": is_admin,
+            "createdAt": datetime.utcnow(),
+            "updatedAt": datetime.utcnow(),
+            "lastLogin": datetime.utcnow()
+        }
+        result = db.users.insert_one(new_user)
+        user = db.users.find_one({"_id": result.inserted_id})
+    else:
+        # Update last login and super admin status
+        db.users.update_one(
+            {"phoneNumber": phone_number},
+            {"$set": {
+                "lastLogin": datetime.utcnow(),
+                "isSuperAdmin": is_admin
+            }}
+        )
+        user = db.users.find_one({"phoneNumber": phone_number})
+    
+    # Check if user is active (super admins always have access)
+    if not user.get("isActive", True) and not is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been deactivated. Please contact support."
+        )
+    
+    # Generate a dev token for subsequent authenticated requests
+    dev_token = f"dev-token-{phone_number}"
+    
+    # Return user data
+    user["_id"] = str(user["_id"])
+    return {
+        "success": True,
+        "devToken": dev_token,
+        "user": {
+            "phoneNumber": user["phoneNumber"],
+            "name": user.get("name", ""),
+            "isActive": user.get("isActive", True),
+            "isSuperAdmin": is_admin
+        }
+    }
 
 # Authentication endpoints
 @app.post("/api/auth/verify-token")
