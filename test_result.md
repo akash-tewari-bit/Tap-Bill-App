@@ -101,3 +101,163 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Build a mobile app for small food carts using Expo (React Native) with FastAPI backend.
+  Features:
+  - Tabbed Navigation: Dashboard, Orders, Reports, Settings (Users tab for Super Admin only)
+  - Authentication: Phone OTP via Firebase (with Dev Mode for local testing)
+  - Super Admin: Phone 9899273448 can manage other users
+  - Dashboard: Today's orders and revenue
+  - Orders: List with date filter, Create Order page
+  - Reports: Table view with CSV export
+  - Settings: Business info and menu items management
+  - Branding: App named "Tap-Bill" with logo
+
+backend:
+  - task: "Health Check Endpoint"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Health endpoint returns status, devMode, and devOtp"
+
+  - task: "Dev Mode Login (Static OTP 666666)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented /api/auth/dev-login endpoint. Tested with curl - returns user data and devToken. Works for super admin (9899273448) and regular users."
+
+  - task: "Firebase Token Verification"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Works in both dev mode (with dev-token-*) and production mode (with Firebase tokens)"
+
+  - task: "User Management (Admin)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoints exist: GET /api/admin/users, PUT /api/admin/users/{phone}"
+
+frontend:
+  - task: "Login Screen with Dev Mode"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/login.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated to check backend dev mode on mount. Uses /api/auth/dev-login when in dev mode."
+
+  - task: "Auth Context with Dev Token Support"
+    implemented: true
+    working: "NA"
+    file: "frontend/contexts/AuthContext.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated to store and use dev tokens for authenticated requests"
+
+  - task: "Dashboard Screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+  - task: "Orders Screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/orders.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+  - task: "Create Order Screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/create-order.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+  - task: "Reports Screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/reports.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+  - task: "Settings Screen"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/settings.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+  - task: "Users Screen (Admin)"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/users.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Dev Mode Login (Static OTP 666666)"
+    - "Login Screen with Dev Mode"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Implemented Development Mode feature:
+      1. Added DEV_MODE=true to backend/.env
+      2. Created /api/auth/dev-login endpoint that accepts any phone + OTP 666666
+      3. Updated frontend login to check backend dev mode and use appropriate flow
+      4. Updated AuthContext to handle dev tokens
+      5. Updated FIREBASE_SETUP.md documentation
+      
+      Backend tested with curl - all working. Frontend needs testing on device.
