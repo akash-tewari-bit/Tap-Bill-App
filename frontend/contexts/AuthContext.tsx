@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (user: User) => Promise<void>;
+  login: (user: User, token?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
   checkUserStatus: () => Promise<void>;
@@ -31,14 +31,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   // Check user status with backend
   const checkUserStatus = async () => {
     try {
+      // Get stored token (could be dev token or Firebase token)
+      const storedToken = await AsyncStorage.getItem('@authToken');
+      
+      // Try Firebase first for production mode
       const firebaseUser = auth.currentUser;
-      if (!firebaseUser) return;
+      let idToken = storedToken;
+      
+      if (firebaseUser) {
+        idToken = await firebaseUser.getIdToken();
+      }
+      
+      if (!idToken) return;
 
-      const idToken = await firebaseUser.getIdToken();
       const response = await axios.post(
         `${BACKEND_URL}/api/auth/verify-token`,
         {},
@@ -85,11 +95,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Load stored user on mount
   useEffect(() => {
-    // Listen to Firebase auth state changes
+    const loadStoredUser = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('@user');
+        const storedToken = await AsyncStorage.getItem('@authToken');
+        
+        if (userData && storedToken) {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          setAuthToken(storedToken);
+          setIsAuthenticated(true);
+          
+          // Check status with backend
+          await checkUserStatus();
+        }
+      } catch (error) {
+        console.error('Error loading stored user:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStoredUser();
+
+    // Also listen to Firebase auth state changes for production mode
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in, get from AsyncStorage
+        // User is signed in via Firebase
         try {
           const userData = await AsyncStorage.getItem('@user');
           if (userData) {
@@ -103,12 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
           console.error('Error loading user data:', error);
         }
-      } else {
-        // User is signed out
-        setUser(null);
-        setIsAuthenticated(false);
       }
-      setIsLoading(false);
+      // Don't clear user if Firebase user is null - might be in dev mode
     });
 
     return () => unsubscribe();
@@ -138,9 +168,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
-  const login = async (userData: User) => {
+  const login = async (userData: User, token?: string) => {
     try {
       await AsyncStorage.setItem('@user', JSON.stringify(userData));
+      if (token) {
+        await AsyncStorage.setItem('@authToken', token);
+        setAuthToken(token);
+      }
       setUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
@@ -151,9 +185,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await auth.signOut();
+      // Try Firebase sign out (will fail silently if not logged in via Firebase)
+      try {
+        await auth.signOut();
+      } catch (e) {
+        // Ignore Firebase signout errors
+      }
+      
       await AsyncStorage.removeItem('@user');
+      await AsyncStorage.removeItem('@authToken');
       setUser(null);
+      setAuthToken(null);
       setIsAuthenticated(false);
       router.replace('/login');
     } catch (error) {
