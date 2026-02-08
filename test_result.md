@@ -133,11 +133,14 @@ backend:
     file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Implemented /api/auth/dev-login endpoint. Tested with curl - returns user data and devToken. Works for super admin (9899273448) and regular users."
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TESTING COMPLETED - All 7 test cases passed (100% success rate). Tested: Health check endpoint, dev login for super admin (9899273448) and regular user (1234567890), invalid OTP rejection (401), dev token verification, admin users endpoint access, and proper access control (403 for non-admin). All endpoints working correctly with proper authentication and authorization."
 
   - task: "Firebase Token Verification"
     implemented: true
