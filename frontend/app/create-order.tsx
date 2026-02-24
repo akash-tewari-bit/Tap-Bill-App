@@ -110,20 +110,34 @@ export default function CreateOrder() {
       // Ask if user wants to print
       Alert.alert(
         'Order Created',
-        'Order created successfully! Would you like to print the receipt?',
+        'Order created successfully! What would you like to do?',
         [
           {
             text: 'Print Receipt',
             onPress: async () => {
-              // Import print service dynamically
               try {
-                const { printReceipt } = await import('../services/printService');
-                if (settings) {
-                  await printReceipt({ order, settings });
+                const printService = require('../services/printService');
+                if (settings && printService.printReceipt) {
+                  await printService.printReceipt({ order, settings });
                 }
               } catch (error) {
                 console.error('Print error:', error);
-                Alert.alert('Print Error', 'Printing is only available on mobile devices.');
+                Alert.alert('Print Error', 'Failed to print receipt.');
+              }
+              router.back();
+            },
+          },
+          {
+            text: 'Share Receipt',
+            onPress: async () => {
+              try {
+                const printService = require('../services/printService');
+                if (settings && printService.shareReceipt) {
+                  await printService.shareReceipt({ order, settings });
+                }
+              } catch (error) {
+                console.error('Share error:', error);
+                Alert.alert('Share Error', 'Failed to share receipt.');
               }
               router.back();
             },
