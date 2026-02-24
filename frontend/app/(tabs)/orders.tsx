@@ -221,6 +221,22 @@ export default function Orders() {
                   <Text style={styles.notesText}>{order.notes}</Text>
                 </View>
               )}
+
+              {/* Print Button */}
+              <TouchableOpacity
+                style={styles.printButton}
+                onPress={() => handlePrintOrder(order)}
+                disabled={printingOrderId === order.id}
+              >
+                <Ionicons 
+                  name={printingOrderId === order.id ? 'hourglass-outline' : 'print-outline'} 
+                  size={18} 
+                  color="#007AFF" 
+                />
+                <Text style={styles.printButtonText}>
+                  {printingOrderId === order.id ? 'Printing...' : 'Print Receipt'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ))
         )}
