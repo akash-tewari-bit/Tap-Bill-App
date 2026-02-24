@@ -187,7 +187,7 @@ export default function LoginScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Tap-Bill</Text>
+          {/* <Text style={styles.title}>Tap-Bill</Text> */}
           <Text style={styles.subtitle}>Login with your mobile number</Text>
         </View>
 
@@ -268,11 +268,11 @@ export default function LoginScreen() {
           </View>
         )}
 
-        <View style={styles.footer}>
+        {/* <View style={styles.footer}>
           <Text style={styles.footerText}>
             By continuing, you agree to our Terms of Service
           </Text>
-        </View>
+        </View> */}
       </View>
     </KeyboardAvoidingView>
   );

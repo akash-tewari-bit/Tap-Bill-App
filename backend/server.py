@@ -283,3 +283,6 @@ async def update_user(user_phone: str, update: UserUpdate, current_user: dict = 
         raise HTTPException(status_code=404, detail="User not found")
     
     return {"success": True, "message": "User updated successfully"}
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
