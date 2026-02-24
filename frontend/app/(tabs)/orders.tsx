@@ -47,6 +47,35 @@ export default function Orders() {
     setRefreshing(false);
   }, [loadOrders]);
 
+  const handlePrintOrder = async (order: Order) => {
+    if (!settings) {
+      Alert.alert('Error', 'Please configure business settings first.');
+      return;
+    }
+
+    const savedPrinter = await getSavedPrinter();
+    if (!savedPrinter) {
+      Alert.alert(
+        'No Printer',
+        'Please configure a printer in Settings first.',
+        [
+          { text: 'Go to Settings', onPress: () => router.push('/(tabs)/settings') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
+    setPrintingOrderId(order.id);
+    try {
+      await printReceipt({ order, settings });
+    } catch (error) {
+      console.error('Print error:', error);
+    } finally {
+      setPrintingOrderId(null);
+    }
+  };
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
