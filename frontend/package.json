@@ -43,7 +43,6 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-bluetooth-escpos-printer": "^0.0.5",
     "react-native-csv": "^0.2.0",
     "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "~2.24.0",
