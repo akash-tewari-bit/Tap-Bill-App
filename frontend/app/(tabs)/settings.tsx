@@ -17,6 +17,7 @@ import type { Settings, MenuItem } from '../../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
+import PrinterSetup from '../../components/PrinterSetup';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
