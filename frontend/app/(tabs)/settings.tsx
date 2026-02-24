@@ -216,6 +216,11 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Printer Setup Section */}
+        <View style={styles.section}>
+          <PrinterSetup />
+        </View>
+
         {/* Menu Items Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
