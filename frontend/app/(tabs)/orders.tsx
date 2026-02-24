@@ -419,6 +419,22 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontStyle: 'italic',
   },
+  printButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  printButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
   createButton: {
     position: 'absolute',
     right: 24,
