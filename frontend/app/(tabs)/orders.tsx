@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { getOrdersByDateRange } from '../../services/storage';
-import type { Order } from '../../services/storage';
+import { getOrdersByDateRange, getSettings } from '../../services/storage';
+import type { Order, Settings } from '../../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { printReceipt, getSavedPrinter } from '../../services/printService';
 
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
