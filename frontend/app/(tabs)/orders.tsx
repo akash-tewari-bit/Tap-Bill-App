@@ -18,16 +18,20 @@ import { printReceipt, getSavedPrinter } from '../../services/printService';
 
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
   const [endDate, setEndDate] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
       const fetchedOrders = await getOrdersByDateRange(startDate, endDate);
       setOrders(fetchedOrders.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      const businessSettings = await getSettings();
+      setSettings(businessSettings);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
