@@ -107,34 +107,45 @@ export default function CreateOrder() {
     try {
       await saveOrder(order);
       
-      // Ask if user wants to print
-      Alert.alert(
-        'Order Created',
-        'Order created successfully! Would you like to print the receipt?',
-        [
-          {
-            text: 'Print Receipt',
-            onPress: async () => {
-              // Import print service dynamically
-              try {
-                const { printReceipt } = await import('../services/printService');
-                if (settings) {
-                  await printReceipt({ order, settings });
-                }
-              } catch (error) {
-                console.error('Print error:', error);
-                Alert.alert('Print Error', 'Printing is only available on mobile devices.');
-              }
-              router.back();
-            },
-          },
-          {
-            text: 'Skip',
-            style: 'cancel',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      // Try to print automatically
+      try {
+        const { printReceipt, getSavedPrinter } = require('../services/printService');
+        const savedPrinter = await getSavedPrinter();
+        
+        if (savedPrinter) {
+          // Printer configured - print directly
+          Alert.alert(
+            'Order Created',
+            'Order saved! Printing receipt...',
+            [{ text: 'OK' }]
+          );
+          
+          const printed = await printReceipt({ order, settings });
+          if (printed) {
+            router.back();
+          } else {
+            // Print failed, go back anyway
+            router.back();
+          }
+        } else {
+          // No printer configured
+          Alert.alert(
+            'Order Created',
+            'Order saved successfully!\n\nTo print receipts, please configure a printer in Settings.',
+            [
+              { text: 'Go to Settings', onPress: () => router.replace('/(tabs)/settings') },
+              { text: 'OK', onPress: () => router.back() },
+            ]
+          );
+        }
+      } catch (printError) {
+        console.error('Print error:', printError);
+        Alert.alert(
+          'Order Created',
+          'Order saved successfully!\n\nPrinting requires a Development Build.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
     } catch (error) {
       console.error('Error saving order:', error);
       Alert.alert('Error', 'Failed to create order. Please try again.');

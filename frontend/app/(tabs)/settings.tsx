@@ -17,6 +17,7 @@ import type { Settings, MenuItem } from '../../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../contexts/AuthContext';
+import PrinterSetup from '../../components/PrinterSetup';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -213,6 +214,11 @@ export default function SettingsScreen() {
             <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
             <Text style={styles.saveButtonText}>Save Business Settings</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Printer Setup Section */}
+        <View style={styles.section}>
+          <PrinterSetup />
         </View>
 
         {/* Menu Items Section */}

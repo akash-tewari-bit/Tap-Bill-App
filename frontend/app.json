@@ -12,7 +12,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Select images for menu items",
-        "NSCameraUsageDescription": "Take photos for menu items"
+        "NSCameraUsageDescription": "Take photos for menu items",
+        "NSBluetoothAlwaysUsageDescription": "Connect to Bluetooth thermal printer for receipts",
+        "NSBluetoothPeripheralUsageDescription": "Connect to Bluetooth thermal printer for receipts"
       }
     },
     "android": {

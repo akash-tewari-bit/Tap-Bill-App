@@ -7,25 +7,31 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
-import { getOrdersByDateRange } from '../../services/storage';
-import type { Order } from '../../services/storage';
+import { getOrdersByDateRange, getSettings } from '../../services/storage';
+import type { Order, Settings } from '../../services/storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { printReceipt, getSavedPrinter } from '../../services/printService';
 
 export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)));
   const [endDate, setEndDate] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
       const fetchedOrders = await getOrdersByDateRange(startDate, endDate);
       setOrders(fetchedOrders.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      const businessSettings = await getSettings();
+      setSettings(businessSettings);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
@@ -40,6 +46,35 @@ export default function Orders() {
     await loadOrders();
     setRefreshing(false);
   }, [loadOrders]);
+
+  const handlePrintOrder = async (order: Order) => {
+    if (!settings) {
+      Alert.alert('Error', 'Please configure business settings first.');
+      return;
+    }
+
+    const savedPrinter = await getSavedPrinter();
+    if (!savedPrinter) {
+      Alert.alert(
+        'No Printer',
+        'Please configure a printer in Settings first.',
+        [
+          { text: 'Go to Settings', onPress: () => router.push('/(tabs)/settings') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
+    setPrintingOrderId(order.id);
+    try {
+      await printReceipt({ order, settings });
+    } catch (error) {
+      console.error('Print error:', error);
+    } finally {
+      setPrintingOrderId(null);
+    }
+  };
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -186,6 +221,22 @@ export default function Orders() {
                   <Text style={styles.notesText}>{order.notes}</Text>
                 </View>
               )}
+
+              {/* Print Button */}
+              <TouchableOpacity
+                style={styles.printButton}
+                onPress={() => handlePrintOrder(order)}
+                disabled={printingOrderId === order.id}
+              >
+                <Ionicons 
+                  name={printingOrderId === order.id ? 'hourglass-outline' : 'print-outline'} 
+                  size={18} 
+                  color="#007AFF" 
+                />
+                <Text style={styles.printButtonText}>
+                  {printingOrderId === order.id ? 'Printing...' : 'Print Receipt'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -367,6 +418,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#000000',
     fontStyle: 'italic',
+  },
+  printButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  printButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   createButton: {
     position: 'absolute',
