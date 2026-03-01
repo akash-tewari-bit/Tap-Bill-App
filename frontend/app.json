@@ -55,7 +55,10 @@
           "photosPermission": "Select images for menu items",
           "cameraPermission": "Take photos for menu items"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
