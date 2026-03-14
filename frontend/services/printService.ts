@@ -8,7 +8,8 @@ const PRINTER_STORAGE_KEY = '@saved_printer';
 export interface PrinterDevice {
   deviceName: string;
   macAddress: string;
-  bondState?: string;
+  id?: string;
+  serviceUUIDs?: string[];
 }
 
 export interface PrintData {
@@ -19,26 +20,47 @@ export interface PrintData {
 export interface SavedPrinter {
   deviceName: string;
   macAddress: string;
+  id?: string;
 }
 
-// Check if we're in a native environment
-const isNativeEnvironment = (): boolean => {
-  return Platform.OS === 'ios' || Platform.OS === 'android';
-};
+// BLE Manager instance
+let bleManager: any = null;
+let connectedDevice: any = null;
 
-// Get the thermal printer module (only works in development build)
-const getThermalPrinterModule = () => {
+// Common thermal printer service and characteristic UUIDs
+const PRINTER_SERVICE_UUIDS = [
+  '000018f0-0000-1000-8000-00805f9b34fb', // Common thermal printer service
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Another common one
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Generic
+];
+
+const PRINTER_CHAR_UUIDS = [
+  '00002af1-0000-1000-8000-00805f9b34fb', // Write characteristic
+  '49535343-8841-43f4-a8d4-ecbe34729bb3', // Another common one
+  'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f', // Generic write
+];
+
+// Get BLE Manager
+const getBleManager = () => {
+  if (bleManager) return bleManager;
+  
   try {
-    const { BluetoothManager, BluetoothEscposPrinter } = require('react-native-thermal-receipt-printer');
-    return { BluetoothManager, BluetoothEscposPrinter };
+    const { BleManager } = require('react-native-ble-plx');
+    bleManager = new BleManager();
+    return bleManager;
   } catch (error) {
-    console.log('Thermal printer module not available');
+    console.log('BLE Manager not available:', error);
     return null;
   }
 };
 
-// Request Bluetooth permissions (Android)
+// Request Bluetooth permissions
 export const requestBluetoothPermissions = async (): Promise<boolean> => {
+  if (Platform.OS === 'ios') {
+    // iOS handles permissions automatically when scanning
+    return true;
+  }
+  
   if (Platform.OS !== 'android') return true;
   
   try {
@@ -48,10 +70,11 @@ export const requestBluetoothPermissions = async (): Promise<boolean> => {
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     ]);
     
-    return (
-      granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
-      granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED
+    const allGranted = Object.values(granted).every(
+      status => status === PermissionsAndroid.RESULTS.GRANTED
     );
+    
+    return allGranted;
   } catch (error) {
     console.error('Permission error:', error);
     return false;
@@ -60,132 +83,179 @@ export const requestBluetoothPermissions = async (): Promise<boolean> => {
 
 // Check if Bluetooth is enabled
 export const isBluetoothEnabled = async (): Promise<boolean> => {
-  const module = getThermalPrinterModule();
-  if (!module) return false;
+  const manager = getBleManager();
+  if (!manager) return false;
   
-  try {
-    const isEnabled = await module.BluetoothManager.isBluetoothEnabled();
-    return isEnabled;
-  } catch (error) {
-    console.error('Bluetooth check error:', error);
-    return false;
-  }
+  return new Promise((resolve) => {
+    manager.state().then((state: string) => {
+      resolve(state === 'PoweredOn');
+    }).catch(() => resolve(false));
+  });
 };
 
-// Enable Bluetooth
+// Enable Bluetooth (Android only - iOS shows system dialog automatically)
 export const enableBluetooth = async (): Promise<boolean> => {
-  const module = getThermalPrinterModule();
-  if (!module) return false;
+  const manager = getBleManager();
+  if (!manager) return false;
+  
+  if (Platform.OS === 'ios') {
+    Alert.alert('Bluetooth Required', 'Please enable Bluetooth in your device settings.');
+    return false;
+  }
   
   try {
-    await module.BluetoothManager.enableBluetooth();
+    await manager.enable();
     return true;
   } catch (error) {
     console.error('Enable Bluetooth error:', error);
+    Alert.alert('Bluetooth Required', 'Please enable Bluetooth in your device settings.');
     return false;
   }
 };
 
-// Scan for Bluetooth devices
+// Scan for BLE printers
 export const scanBluetoothDevices = async (): Promise<PrinterDevice[]> => {
-  const module = getThermalPrinterModule();
-  if (!module) {
-    Alert.alert('Not Available', 'Bluetooth printing requires a Development Build. Please run: npx expo run:android or npx expo run:ios');
+  const manager = getBleManager();
+  
+  if (!manager) {
+    Alert.alert(
+      'Development Build Required',
+      'BLE printing requires a Development Build.\n\nRun:\nnpx expo run:android\nor\nnpx expo run:ios',
+      [{ text: 'OK' }]
+    );
     return [];
   }
   
-  try {
-    // Request permissions first
-    const hasPermission = await requestBluetoothPermissions();
-    if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Bluetooth permissions are required to scan for printers.');
-      return [];
-    }
+  // Request permissions
+  const hasPermission = await requestBluetoothPermissions();
+  if (!hasPermission) {
+    Alert.alert('Permission Denied', 'Bluetooth permissions are required to scan for printers.');
+    return [];
+  }
+  
+  // Check Bluetooth state
+  const isEnabled = await isBluetoothEnabled();
+  if (!isEnabled) {
+    const enabled = await enableBluetooth();
+    if (!enabled) return [];
+  }
+  
+  return new Promise((resolve) => {
+    const devices: PrinterDevice[] = [];
+    const deviceIds = new Set<string>();
     
-    // Check if Bluetooth is enabled
-    const isEnabled = await isBluetoothEnabled();
-    if (!isEnabled) {
-      const enabled = await enableBluetooth();
-      if (!enabled) {
-        Alert.alert('Bluetooth Disabled', 'Please enable Bluetooth to scan for printers.');
-        return [];
+    // Stop any existing scan
+    manager.stopDeviceScan();
+    
+    // Set timeout for scan (10 seconds)
+    const timeout = setTimeout(() => {
+      manager.stopDeviceScan();
+      resolve(devices);
+    }, 10000);
+    
+    // Start scanning
+    manager.startDeviceScan(
+      null, // Scan for all devices (no service UUID filter)
+      { allowDuplicates: false },
+      (error: any, device: any) => {
+        if (error) {
+          console.error('Scan error:', error);
+          clearTimeout(timeout);
+          manager.stopDeviceScan();
+          resolve(devices);
+          return;
+        }
+        
+        if (device && device.name && !deviceIds.has(device.id)) {
+          deviceIds.add(device.id);
+          
+          // Filter for likely printers (optional - can be removed for broader results)
+          const name = device.name.toLowerCase();
+          const isPrinter = name.includes('print') || 
+                          name.includes('pos') || 
+                          name.includes('thermal') ||
+                          name.includes('bt') ||
+                          name.includes('spp') ||
+                          name.includes('receipt') ||
+                          name.length > 0; // Include all named devices
+          
+          if (isPrinter) {
+            devices.push({
+              deviceName: device.name || 'Unknown Device',
+              macAddress: device.id,
+              id: device.id,
+              serviceUUIDs: device.serviceUUIDs,
+            });
+          }
+        }
+      }
+    );
+  });
+};
+
+// Get already paired/known devices (alias for scan)
+export const getPairedDevices = async (): Promise<PrinterDevice[]> => {
+  return scanBluetoothDevices();
+};
+
+// Connect to a BLE printer
+export const connectToPrinter = async (deviceId: string): Promise<boolean> => {
+  const manager = getBleManager();
+  if (!manager) return false;
+  
+  try {
+    // Disconnect any existing connection
+    if (connectedDevice) {
+      try {
+        await connectedDevice.cancelConnection();
+      } catch (e) {
+        // Ignore disconnect errors
       }
     }
     
-    // Get paired devices
-    const pairedDevices = await module.BluetoothManager.scanDevices();
+    // Connect to device
+    console.log('Connecting to device:', deviceId);
+    const device = await manager.connectToDevice(deviceId, {
+      timeout: 10000,
+    });
     
-    if (typeof pairedDevices === 'string') {
-      const parsed = JSON.parse(pairedDevices);
-      const paired = parsed.paired || [];
-      return paired.map((d: any) => ({
-        deviceName: d.name || 'Unknown Device',
-        macAddress: d.address,
-        bondState: 'bonded',
-      }));
-    }
+    // Discover services and characteristics
+    console.log('Discovering services...');
+    await device.discoverAllServicesAndCharacteristics();
     
-    return [];
-  } catch (error) {
-    console.error('Scan error:', error);
-    Alert.alert('Scan Error', 'Failed to scan for Bluetooth devices.');
-    return [];
-  }
-};
-
-// Get already paired devices (Android)
-export const getPairedDevices = async (): Promise<PrinterDevice[]> => {
-  const module = getThermalPrinterModule();
-  if (!module) {
-    return [];
-  }
-  
-  try {
-    // Request permissions first
-    const hasPermission = await requestBluetoothPermissions();
-    if (!hasPermission) {
-      return [];
-    }
-    
-    // Check if Bluetooth is enabled
-    const isEnabled = await isBluetoothEnabled();
-    if (!isEnabled) {
-      await enableBluetooth();
-    }
-    
-    // Get paired devices - this is faster than scanning
-    const result = await module.BluetoothManager.scanDevices();
-    
-    if (typeof result === 'string') {
-      const parsed = JSON.parse(result);
-      const paired = parsed.paired || [];
-      
-      // Filter to show likely printer devices (optional)
-      return paired.map((d: any) => ({
-        deviceName: d.name || 'Unknown Device',
-        macAddress: d.address,
-        bondState: 'bonded',
-      }));
-    }
-    
-    return [];
-  } catch (error) {
-    console.error('Get paired devices error:', error);
-    return [];
-  }
-};
-
-// Connect to a printer
-export const connectToPrinter = async (macAddress: string): Promise<boolean> => {
-  const module = getThermalPrinterModule();
-  if (!module) return false;
-  
-  try {
-    await module.BluetoothManager.connect(macAddress);
+    connectedDevice = device;
+    console.log('Connected successfully');
     return true;
   } catch (error) {
     console.error('Connection error:', error);
     return false;
+  }
+};
+
+// Find the write characteristic for the printer
+const findWriteCharacteristic = async (device: any): Promise<{ serviceUUID: string; charUUID: string } | null> => {
+  try {
+    const services = await device.services();
+    
+    for (const service of services) {
+      const characteristics = await service.characteristics();
+      
+      for (const char of characteristics) {
+        // Check if this characteristic supports write
+        if (char.isWritableWithResponse || char.isWritableWithoutResponse) {
+          console.log('Found writable characteristic:', char.uuid);
+          return {
+            serviceUUID: service.uuid,
+            charUUID: char.uuid,
+          };
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error finding write characteristic:', error);
+    return null;
   }
 };
 
@@ -207,196 +277,237 @@ export const getSavedPrinter = async (): Promise<SavedPrinter | null> => {
 // Remove saved printer
 export const removeSavedPrinter = async (): Promise<void> => {
   await AsyncStorage.removeItem(PRINTER_STORAGE_KEY);
+  if (connectedDevice) {
+    try {
+      await connectedDevice.cancelConnection();
+    } catch (e) {}
+    connectedDevice = null;
+  }
 };
 
-// Generate receipt text for thermal printer
-const generateReceiptCommands = async (
-  printData: PrintData,
-  EscposPrinter: any
-): Promise<void> => {
+// Convert string to bytes for ESC/POS
+const stringToBytes = (str: string): number[] => {
+  const bytes: number[] = [];
+  for (let i = 0; i < str.length; i++) {
+    bytes.push(str.charCodeAt(i));
+  }
+  return bytes;
+};
+
+// ESC/POS commands
+const ESC = 0x1B;
+const GS = 0x1D;
+const COMMANDS = {
+  INIT: [ESC, 0x40], // Initialize printer
+  ALIGN_CENTER: [ESC, 0x61, 0x01],
+  ALIGN_LEFT: [ESC, 0x61, 0x00],
+  ALIGN_RIGHT: [ESC, 0x61, 0x02],
+  BOLD_ON: [ESC, 0x45, 0x01],
+  BOLD_OFF: [ESC, 0x45, 0x00],
+  DOUBLE_HEIGHT_ON: [GS, 0x21, 0x10],
+  DOUBLE_WIDTH_ON: [GS, 0x21, 0x20],
+  DOUBLE_SIZE_ON: [GS, 0x21, 0x30],
+  NORMAL_SIZE: [GS, 0x21, 0x00],
+  FEED_LINE: [0x0A],
+  CUT_PAPER: [GS, 0x56, 0x00],
+};
+
+// Generate receipt data as ESC/POS commands
+const generateReceiptData = (printData: PrintData): number[] => {
   const { order, settings } = printData;
-
-  // Format date and time
-  const orderDate = new Date(order.timestamp);
-  const formattedDate = orderDate.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-  const formattedTime = orderDate.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-
+  let data: number[] = [];
+  
   // Initialize printer
-  await EscposPrinter.printerInit();
-  await EscposPrinter.printerAlign(EscposPrinter.ALIGN.CENTER);
-
-  // Print business name (large, bold)
+  data = data.concat(COMMANDS.INIT);
+  
+  // Center align for header
+  data = data.concat(COMMANDS.ALIGN_CENTER);
+  
+  // Business name (large, bold)
   if (settings.businessName) {
-    await EscposPrinter.printText(`${settings.businessName}\n`, {
-      encoding: 'GBK',
-      codepage: 0,
-      widthtimes: 2,
-      heigthtimes: 2,
-      fonttype: 1,
-    });
+    data = data.concat(COMMANDS.DOUBLE_SIZE_ON);
+    data = data.concat(COMMANDS.BOLD_ON);
+    data = data.concat(stringToBytes(settings.businessName));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(COMMANDS.BOLD_OFF);
+    data = data.concat(COMMANDS.NORMAL_SIZE);
   }
-
-  // Print address
+  
+  // Address
   if (settings.address) {
-    await EscposPrinter.printText(`${settings.address}\n`, {});
+    data = data.concat(stringToBytes(settings.address));
+    data = data.concat(COMMANDS.FEED_LINE);
   }
-
-  // Print phone
+  
+  // Phone
   if (settings.phone) {
-    await EscposPrinter.printText(`Tel: ${settings.phone}\n`, {});
+    data = data.concat(stringToBytes(`Tel: ${settings.phone}`));
+    data = data.concat(COMMANDS.FEED_LINE);
   }
-
-  // Print GST
+  
+  // GST
   if (settings.gstNumber) {
-    await EscposPrinter.printText(`GST: ${settings.gstNumber}\n`, {});
+    data = data.concat(stringToBytes(`GST: ${settings.gstNumber}`));
+    data = data.concat(COMMANDS.FEED_LINE);
   }
-
+  
   // Separator
-  await EscposPrinter.printText('--------------------------------\n', {});
-
-  // Order details (left aligned)
-  await EscposPrinter.printerAlign(EscposPrinter.ALIGN.LEFT);
-  await EscposPrinter.printText(`Order #${order.id}\n`, { fonttype: 1 });
-  await EscposPrinter.printText(`Date: ${formattedDate}\n`, {});
-  await EscposPrinter.printText(`Time: ${formattedTime}\n`, {});
-
+  data = data.concat(stringToBytes('--------------------------------'));
+  data = data.concat(COMMANDS.FEED_LINE);
+  
+  // Order details (left align)
+  data = data.concat(COMMANDS.ALIGN_LEFT);
+  
+  const orderDate = new Date(order.timestamp);
+  const formattedDate = orderDate.toLocaleDateString('en-IN');
+  const formattedTime = orderDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  
+  data = data.concat(COMMANDS.BOLD_ON);
+  data = data.concat(stringToBytes(`Order #${order.id}`));
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(COMMANDS.BOLD_OFF);
+  
+  data = data.concat(stringToBytes(`Date: ${formattedDate}`));
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(stringToBytes(`Time: ${formattedTime}`));
+  data = data.concat(COMMANDS.FEED_LINE);
+  
   if (order.customerName) {
-    await EscposPrinter.printText(`Customer: ${order.customerName}\n`, {});
+    data = data.concat(stringToBytes(`Customer: ${order.customerName}`));
+    data = data.concat(COMMANDS.FEED_LINE);
   }
-  if (order.customerPhone) {
-    await EscposPrinter.printText(`Phone: ${order.customerPhone}\n`, {});
-  }
-  if (order.tableToken) {
-    await EscposPrinter.printText(`Table/Token: ${order.tableToken}\n`, {});
-  }
-
+  
   // Separator
-  await EscposPrinter.printText('--------------------------------\n', {});
-
-  // Items header
-  await EscposPrinter.printColumn(
-    [16, 6, 10],
-    [EscposPrinter.ALIGN.LEFT, EscposPrinter.ALIGN.CENTER, EscposPrinter.ALIGN.RIGHT],
-    ['Item', 'Qty', 'Amount'],
-    { fonttype: 1 }
-  );
-  await EscposPrinter.printText('--------------------------------\n', {});
-
-  // Print each item
+  data = data.concat(stringToBytes('--------------------------------'));
+  data = data.concat(COMMANDS.FEED_LINE);
+  
+  // Items
   for (const item of order.items) {
     const itemTotal = item.quantity * item.menuItem.price;
-    const itemName = item.menuItem.name.length > 14 
-      ? item.menuItem.name.substring(0, 14) 
-      : item.menuItem.name;
-    
-    await EscposPrinter.printColumn(
-      [16, 6, 10],
-      [EscposPrinter.ALIGN.LEFT, EscposPrinter.ALIGN.CENTER, EscposPrinter.ALIGN.RIGHT],
-      [itemName, item.quantity.toString(), `Rs.${itemTotal.toFixed(0)}`],
-      {}
-    );
+    const itemLine = `${item.menuItem.name.substring(0, 16).padEnd(16)} x${item.quantity}  Rs.${itemTotal}`;
+    data = data.concat(stringToBytes(itemLine));
+    data = data.concat(COMMANDS.FEED_LINE);
   }
-
-  // Separator and total
-  await EscposPrinter.printText('--------------------------------\n', {});
-  await EscposPrinter.printColumn(
-    [16, 16],
-    [EscposPrinter.ALIGN.LEFT, EscposPrinter.ALIGN.RIGHT],
-    ['TOTAL:', `Rs.${order.totalAmount.toFixed(0)}`],
-    { fonttype: 1, widthtimes: 1, heigthtimes: 1 }
-  );
-  await EscposPrinter.printText('--------------------------------\n', {});
-
-  // Payment mode
-  await EscposPrinter.printText(`Payment: ${order.paymentMode}\n`, {});
-
-  // Notes
-  if (order.notes) {
-    await EscposPrinter.printText(`Notes: ${order.notes}\n`, {});
-  }
-
-  // Footer
-  await EscposPrinter.printText('\n', {});
-  await EscposPrinter.printerAlign(EscposPrinter.ALIGN.CENTER);
-  await EscposPrinter.printText('Thank you for your order!\n', {});
-  await EscposPrinter.printText('Please visit again\n', {});
   
-  // Feed and cut
-  await EscposPrinter.printText('\n\n\n', {});
+  // Separator and total
+  data = data.concat(stringToBytes('--------------------------------'));
+  data = data.concat(COMMANDS.FEED_LINE);
+  
+  data = data.concat(COMMANDS.BOLD_ON);
+  data = data.concat(COMMANDS.DOUBLE_HEIGHT_ON);
+  data = data.concat(stringToBytes(`TOTAL: Rs.${order.totalAmount}`));
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(COMMANDS.NORMAL_SIZE);
+  data = data.concat(COMMANDS.BOLD_OFF);
+  
+  data = data.concat(stringToBytes('--------------------------------'));
+  data = data.concat(COMMANDS.FEED_LINE);
+  
+  // Payment mode
+  data = data.concat(stringToBytes(`Payment: ${order.paymentMode}`));
+  data = data.concat(COMMANDS.FEED_LINE);
+  
+  // Footer
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(COMMANDS.ALIGN_CENTER);
+  data = data.concat(stringToBytes('Thank you for your order!'));
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(stringToBytes('Please visit again'));
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(COMMANDS.FEED_LINE);
+  data = data.concat(COMMANDS.FEED_LINE);
+  
+  return data;
 };
 
-// Print receipt directly to connected printer
+// Write data to printer in chunks
+const writeDataToPrinter = async (device: any, data: number[]): Promise<boolean> => {
+  try {
+    const writeInfo = await findWriteCharacteristic(device);
+    if (!writeInfo) {
+      console.error('No writable characteristic found');
+      return false;
+    }
+    
+    const { serviceUUID, charUUID } = writeInfo;
+    const chunkSize = 20; // BLE typically has 20 byte MTU for write
+    
+    for (let i = 0; i < data.length; i += chunkSize) {
+      const chunk = data.slice(i, i + chunkSize);
+      const base64Data = Buffer.from(chunk).toString('base64');
+      
+      await device.writeCharacteristicWithResponseForService(
+        serviceUUID,
+        charUUID,
+        base64Data
+      );
+      
+      // Small delay between chunks
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Write error:', error);
+    return false;
+  }
+};
+
+// Print receipt
 export const printReceipt = async (printData: PrintData): Promise<boolean> => {
-  const module = getThermalPrinterModule();
+  const manager = getBleManager();
   
-  if (!module) {
+  if (!manager) {
     Alert.alert(
       'Development Build Required',
-      'Direct Bluetooth printing requires a Development Build.\n\nRun: npx expo run:android\nor: npx expo run:ios',
-      [{ text: 'OK' }]
+      'BLE printing requires a Development Build.\n\nRun: npx expo run:android\nor: npx expo run:ios'
     );
     return false;
   }
   
   try {
-    // Get saved printer
     const savedPrinter = await getSavedPrinter();
     
     if (!savedPrinter) {
-      Alert.alert(
-        'No Printer Configured',
-        'Please configure a printer in Settings first.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('No Printer', 'Please configure a printer in Settings first.');
       return false;
     }
     
-    // Check Bluetooth
-    const isEnabled = await isBluetoothEnabled();
-    if (!isEnabled) {
-      const enabled = await enableBluetooth();
-      if (!enabled) {
-        Alert.alert('Bluetooth Disabled', 'Please enable Bluetooth to print.');
+    // Connect if not connected
+    if (!connectedDevice || !(await connectedDevice.isConnected())) {
+      const connected = await connectToPrinter(savedPrinter.macAddress);
+      if (!connected) {
+        Alert.alert('Connection Failed', 'Could not connect to printer. Please check if it is turned on.');
         return false;
       }
     }
     
-    // Connect to printer
-    const connected = await connectToPrinter(savedPrinter.macAddress);
-    if (!connected) {
-      Alert.alert(
-        'Connection Failed',
-        `Could not connect to ${savedPrinter.deviceName}. Please check if the printer is on and nearby.`,
-        [{ text: 'OK' }]
-      );
+    // Generate receipt data
+    const receiptData = generateReceiptData(printData);
+    
+    // Write to printer
+    const success = await writeDataToPrinter(connectedDevice, receiptData);
+    
+    if (!success) {
+      Alert.alert('Print Failed', 'Could not send data to printer.');
       return false;
     }
-    
-    // Print the receipt
-    await generateReceiptCommands(printData, module.BluetoothEscposPrinter);
     
     return true;
   } catch (error) {
     console.error('Print error:', error);
-    Alert.alert('Print Error', 'Failed to print receipt. Please check printer connection.');
+    Alert.alert('Print Error', 'Failed to print receipt.');
     return false;
   }
 };
 
-// Test print (prints a test page)
+// Test print
 export const testPrint = async (): Promise<boolean> => {
-  const module = getThermalPrinterModule();
+  const manager = getBleManager();
   
-  if (!module) {
-    Alert.alert('Development Build Required', 'Direct Bluetooth printing requires a Development Build.');
+  if (!manager) {
+    Alert.alert('Development Build Required', 'BLE printing requires a Development Build.');
     return false;
   }
   
@@ -408,30 +519,51 @@ export const testPrint = async (): Promise<boolean> => {
       return false;
     }
     
-    // Connect
-    const connected = await connectToPrinter(savedPrinter.macAddress);
-    if (!connected) {
-      Alert.alert('Connection Failed', 'Could not connect to printer.');
-      return false;
+    // Connect if not connected
+    if (!connectedDevice || !(await connectedDevice.isConnected())) {
+      const connected = await connectToPrinter(savedPrinter.macAddress);
+      if (!connected) {
+        Alert.alert('Connection Failed', 'Could not connect to printer.');
+        return false;
+      }
     }
     
-    // Print test page
-    const EscposPrinter = module.BluetoothEscposPrinter;
-    await EscposPrinter.printerInit();
-    await EscposPrinter.printerAlign(EscposPrinter.ALIGN.CENTER);
-    await EscposPrinter.printText('*** TEST PRINT ***\n', { fonttype: 1, widthtimes: 1, heigthtimes: 1 });
-    await EscposPrinter.printText('--------------------------------\n', {});
-    await EscposPrinter.printText('Tap-Bill POS System\n', {});
-    await EscposPrinter.printText('Printer Connected Successfully!\n', {});
-    await EscposPrinter.printText('--------------------------------\n', {});
-    await EscposPrinter.printText(`${new Date().toLocaleString()}\n`, {});
-    await EscposPrinter.printText('\n\n\n', {});
+    // Generate test print data
+    let data: number[] = [];
+    data = data.concat(COMMANDS.INIT);
+    data = data.concat(COMMANDS.ALIGN_CENTER);
+    data = data.concat(COMMANDS.DOUBLE_SIZE_ON);
+    data = data.concat(COMMANDS.BOLD_ON);
+    data = data.concat(stringToBytes('*** TEST PRINT ***'));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(COMMANDS.NORMAL_SIZE);
+    data = data.concat(COMMANDS.BOLD_OFF);
+    data = data.concat(stringToBytes('--------------------------------'));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(stringToBytes('Tap-Bill POS System'));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(stringToBytes('Printer Connected!'));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(stringToBytes('--------------------------------'));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(stringToBytes(new Date().toLocaleString()));
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(COMMANDS.FEED_LINE);
+    data = data.concat(COMMANDS.FEED_LINE);
     
-    Alert.alert('Success', 'Test page printed successfully!');
-    return true;
+    const success = await writeDataToPrinter(connectedDevice, data);
+    
+    if (success) {
+      Alert.alert('Success', 'Test page printed!');
+      return true;
+    } else {
+      Alert.alert('Failed', 'Could not print test page.');
+      return false;
+    }
   } catch (error) {
     console.error('Test print error:', error);
-    Alert.alert('Print Error', 'Failed to print test page.');
+    Alert.alert('Error', 'Test print failed.');
     return false;
   }
 };
