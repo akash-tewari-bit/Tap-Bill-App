@@ -133,6 +133,48 @@ export const scanBluetoothDevices = async (): Promise<PrinterDevice[]> => {
   }
 };
 
+// Get already paired devices (Android)
+export const getPairedDevices = async (): Promise<PrinterDevice[]> => {
+  const module = getThermalPrinterModule();
+  if (!module) {
+    return [];
+  }
+  
+  try {
+    // Request permissions first
+    const hasPermission = await requestBluetoothPermissions();
+    if (!hasPermission) {
+      return [];
+    }
+    
+    // Check if Bluetooth is enabled
+    const isEnabled = await isBluetoothEnabled();
+    if (!isEnabled) {
+      await enableBluetooth();
+    }
+    
+    // Get paired devices - this is faster than scanning
+    const result = await module.BluetoothManager.scanDevices();
+    
+    if (typeof result === 'string') {
+      const parsed = JSON.parse(result);
+      const paired = parsed.paired || [];
+      
+      // Filter to show likely printer devices (optional)
+      return paired.map((d: any) => ({
+        deviceName: d.name || 'Unknown Device',
+        macAddress: d.address,
+        bondState: 'bonded',
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Get paired devices error:', error);
+    return [];
+  }
+};
+
 // Connect to a printer
 export const connectToPrinter = async (macAddress: string): Promise<boolean> => {
   const module = getThermalPrinterModule();
