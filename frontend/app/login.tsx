@@ -343,6 +343,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  devModeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF9500',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+    alignSelf: 'center',
+    gap: 8,
+  },
+  devModeBannerText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   header: {
     alignItems: 'center',
     marginBottom: 48,
