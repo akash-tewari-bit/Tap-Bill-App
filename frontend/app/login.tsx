@@ -226,6 +226,16 @@ export default function LoginScreen() {
       )}
 
       <View style={styles.content}>
+        {/* Dev Mode Banner */}
+        {devMode && (
+          <View style={styles.devModeBanner}>
+            <Ionicons name="construct" size={16} color="#FFFFFF" />
+            <Text style={styles.devModeBannerText}>
+              DEV MODE • OTP: {devOtp} • Backend: {backendStatus}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.header}>
           <Image
             source={require('../assets/images/tap-bill-logo.png')}
