@@ -119,23 +119,48 @@ export default function LoginScreen() {
     try {
       // Development mode - use backend dev login
       if (devMode && verificationId === 'dev-mode-verification-id') {
-        console.log('🔧 DEV MODE: Using backend dev login');
+        console.log('🔧 DEV MODE: Using dev login');
         
-        const response = await axios.post(
-          `${BACKEND_URL}/api/auth/dev-login`,
-          {
-            phoneNumber: phoneNumber,
-            otp: verificationCode
-          }
-        );
-
-        if (response.data.success) {
-          // Store dev token for authenticated requests
-          await login(response.data.user, response.data.devToken);
-          router.replace('/(tabs)');
-        } else {
-          Alert.alert('Error', response.data.message || 'Authentication failed');
+        // Validate OTP
+        if (verificationCode !== devOtp) {
+          Alert.alert('Invalid OTP', `Please enter ${devOtp} for development mode.`);
+          setLoading(false);
+          return;
         }
+        
+        // Try backend dev login first
+        try {
+          const response = await axios.post(
+            `${BACKEND_URL}/api/auth/dev-login`,
+            {
+              phoneNumber: phoneNumber,
+              otp: verificationCode
+            },
+            { timeout: 5000 }
+          );
+
+          if (response.data.success) {
+            // Store dev token for authenticated requests
+            await login(response.data.user, response.data.devToken);
+            router.replace('/(tabs)');
+            return;
+          }
+        } catch (backendError: any) {
+          console.log('⚠️ Backend unreachable, using local dev mode');
+          
+          // Backend unreachable - create local mock user
+          const mockUser = {
+            phoneNumber: `+91${phoneNumber}`,
+            name: phoneNumber === '9899273448' ? 'Super Admin' : 'Dev User',
+            isActive: true,
+            isSuperAdmin: phoneNumber === '9899273448',
+          };
+          
+          await login(mockUser, `dev-token-+91${phoneNumber}`);
+          router.replace('/(tabs)');
+          return;
+        }
+        
         setLoading(false);
         return;
       }
