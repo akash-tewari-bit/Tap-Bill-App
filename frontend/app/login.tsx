@@ -24,13 +24,17 @@ import { Ionicons } from '@expo/vector-icons';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
+// Force dev mode if backend is unreachable (for local testing)
+const FORCE_DEV_MODE = true; // Set to false for production
+
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [devMode, setDevMode] = useState(false);
-  const [devOtp, setDevOtp] = useState('');
+  const [devMode, setDevMode] = useState(FORCE_DEV_MODE);
+  const [devOtp, setDevOtp] = useState('666666');
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
   const { login } = useAuth();
   const recaptchaVerifier = useRef<any>(null);
 
@@ -41,14 +45,30 @@ export default function LoginScreen() {
 
   const checkDevMode = async () => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/health`);
+      console.log('🔍 Checking backend at:', BACKEND_URL);
+      const response = await axios.get(`${BACKEND_URL}/api/health`, { timeout: 5000 });
+      console.log('✅ Backend response:', response.data);
+      
       if (response.data.devMode) {
         setDevMode(true);
         setDevOtp(response.data.devOtp || '666666');
+        setBackendStatus('connected');
         console.log('🔧 Backend is in DEV MODE');
+      } else {
+        setDevMode(false);
+        setBackendStatus('connected');
+        console.log('🏭 Backend is in PRODUCTION MODE');
       }
-    } catch (error) {
-      console.log('Could not check dev mode, assuming production');
+    } catch (error: any) {
+      console.log('❌ Could not reach backend:', error.message);
+      console.log('🔧 Using FORCE_DEV_MODE:', FORCE_DEV_MODE);
+      setBackendStatus('offline');
+      
+      // If FORCE_DEV_MODE is true, keep dev mode enabled even if backend is unreachable
+      if (FORCE_DEV_MODE) {
+        setDevMode(true);
+        setDevOtp('666666');
+      }
     }
   };
 
